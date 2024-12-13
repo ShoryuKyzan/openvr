@@ -40,6 +40,7 @@ public:
 	void GetEyeOutputViewport( vr::EVREye eEye, uint32_t *pnX, uint32_t *pnY, uint32_t *pnWidth, uint32_t *pnHeight ) override;
 	void GetProjectionRaw( vr::EVREye eEye, float *pfLeft, float *pfRight, float *pfTop, float *pfBottom ) override;
 	vr::DistortionCoordinates_t ComputeDistortion( vr::EVREye eEye, float fU, float fV ) override;
+	bool ComputeInverseDistortion(vr::HmdVector2_t*, vr::EVREye, uint32_t, float, float) override;
 	void GetWindowBounds( int32_t *pnX, int32_t *pnY, uint32_t *pnWidth, uint32_t *pnHeight ) override;
 
 private:
@@ -55,15 +56,25 @@ private:
 class MyHMDControllerDeviceDriver : public vr::ITrackedDeviceServerDriver
 {
 public:
+	struct KeyboardInput {
+		float x = 0.0f;  // Left/Right position (A/D)
+		float y = 0.0f;  // Up/Down position (Q/E)
+		float z = 0.0f;  // Forward/Back position (W/S)
+		float yaw = 0.0f;   // Left/Right rotation (Left/Right arrows)
+		float pitch = 0.0f; // Up/Down rotation (Up/Down arrows)
+		float roll = 0.0f;  // Roll rotation (Page Up/Page Down)
+	};
+
 	MyHMDControllerDeviceDriver();
 	vr::EVRInitError Activate( uint32_t unObjectId ) override;
 	void EnterStandby() override;
 	void *GetComponent( const char *pchComponentNameAndVersion ) override;
 	void DebugRequest( const char *pchRequest, char *pchResponseBuffer, uint32_t unResponseBufferSize ) override;
 	vr::DriverPose_t GetPose() override;
-	void Deactivate() override;
+    void UpdateFromKeyboard();
+    void Deactivate() override;
 
-	// ----- Functions we declare ourselves below -----
+    // ----- Functions we declare ourselves below -----
 	const std::string &MyGetSerialNumber();
 	void MyRunFrame();
 	void MyProcessEvent( const vr::VREvent_t &vrevent );
@@ -81,4 +92,6 @@ private:
 	std::atomic< uint32_t > device_index_;
 
 	std::thread my_pose_update_thread_;
+
+	KeyboardInput keyboard_input_;
 };

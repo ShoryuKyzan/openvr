@@ -4,6 +4,7 @@
 #include "driverlog.h"
 #include "vrmath.h"
 #include <string.h>
+#include <Windows.h>
 
 // Let's create some variables for strings used in getting settings.
 // This is the section where all of the settings we want are stored. A section name can be anything,
@@ -146,51 +147,69 @@ void MyHMDControllerDeviceDriver::DebugRequest( const char *pchRequest, char *pc
 //-----------------------------------------------------------------------------
 vr::DriverPose_t MyHMDControllerDeviceDriver::GetPose()
 {
-	// Let's retrieve the Hmd pose to base our controller pose off.
-
-	// First, initialize the struct that we'll be submitting to the runtime to tell it we've updated our pose.
 	vr::DriverPose_t pose = { 0 };
 
-	// These need to be set to be valid quaternions. The device won't appear otherwise.
 	pose.qWorldFromDriverRotation.w = 1.f;
 	pose.qDriverFromHeadRotation.w = 1.f;
 
-	pose.qRotation.w = 1.f;
+	// Convert Euler angles to quaternion using helper function
+	pose.qRotation = HmdQuaternion_FromEulerAngles(keyboard_input_.roll, keyboard_input_.pitch, keyboard_input_.yaw);
 
-	pose.vecPosition[ 0 ] = 0.0f;
-	pose.vecPosition[ 1 ] = sin( frame_number_ * 0.01 ) * 0.1f + 1.0f; // slowly move the hmd up and down.
-	pose.vecPosition[ 2 ] = 0.0f;
+	pose.vecPosition[0] = keyboard_input_.x;
+	pose.vecPosition[1] = keyboard_input_.y;
+	pose.vecPosition[2] = keyboard_input_.z;
 
-	// The pose we provided is valid.
-	// This should be set is
+	// pose.vecVelocity[0] = keyboard_input_.x;
+	// pose.vecVelocity[1] = keyboard_input_.y;
+	// pose.vecVelocity[2] = keyboard_input_.z;
+
 	pose.poseIsValid = true;
-
-	// Our device is always connected.
-	// In reality with physical devices, when they get disconnected,
-	// set this to false and icons in SteamVR will be updated to show the device is disconnected
 	pose.deviceIsConnected = true;
-
-	// The state of our tracking. For our virtual device, it's always going to be ok,
-	// but this can get set differently to inform the runtime about the state of the device's tracking
-	// and update the icons to inform the user accordingly.
 	pose.result = vr::TrackingResult_Running_OK;
-
-	// For HMDs we want to apply rotation/motion prediction
 	pose.shouldApplyHeadModel = true;
 
 	return pose;
 }
 
+void MyHMDControllerDeviceDriver::UpdateFromKeyboard()
+{
+	const float move_speed = 0.2f;
+	const float rotate_speed = 0.02f;
+
+	// Reset control
+	if (GetAsyncKeyState('R') & 0x8000) {
+		keyboard_input_.x = 0.0f;
+		keyboard_input_.y = 0.0f; 
+		keyboard_input_.z = 0.0f;
+		keyboard_input_.yaw = 0.0f;
+		keyboard_input_.pitch = 0.0f;
+		keyboard_input_.roll = 0.0f;
+	}
+
+	// Position controls
+	if (GetAsyncKeyState('A') & 0x8000) keyboard_input_.x -= move_speed;  // Left
+	if (GetAsyncKeyState('D') & 0x8000) keyboard_input_.x += move_speed;  // Right
+	if (GetAsyncKeyState('W') & 0x8000) keyboard_input_.z -= move_speed;  // Forward
+	if (GetAsyncKeyState('S') & 0x8000) keyboard_input_.z += move_speed;  // Back
+	if (GetAsyncKeyState('Q') & 0x8000) keyboard_input_.y -= move_speed;  // Down
+	if (GetAsyncKeyState('E') & 0x8000) keyboard_input_.y += move_speed;  // Up
+
+	// Rotation controls
+	if (GetAsyncKeyState(VK_LEFT) & 0x8000) keyboard_input_.yaw -= rotate_speed;   // Turn left
+	if (GetAsyncKeyState(VK_RIGHT) & 0x8000) keyboard_input_.yaw += rotate_speed;  // Turn right
+	if (GetAsyncKeyState(VK_UP) & 0x8000) keyboard_input_.pitch -= rotate_speed;   // Look up
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000) keyboard_input_.pitch += rotate_speed; // Look down
+	if (GetAsyncKeyState(VK_PRIOR) & 0x8000) keyboard_input_.roll -= rotate_speed; // Roll left (Page Up)
+	if (GetAsyncKeyState(VK_NEXT) & 0x8000) keyboard_input_.roll += rotate_speed;  // Roll right (Page Down)
+}
+
 void MyHMDControllerDeviceDriver::MyPoseUpdateThread()
 {
-	while ( is_active_ )
+	while (is_active_)
 	{
-		// Inform the vrserver that our tracked device's pose has updated, giving it the pose returned by our GetPose().
-		vr::VRServerDriverHost()->TrackedDevicePoseUpdated( device_index_, GetPose(), sizeof( vr::DriverPose_t ) );
-
-		// Update our pose every five milliseconds.
-		// In reality, you should update the pose whenever you have new data from your device.
-		std::this_thread::sleep_for( std::chrono::milliseconds( 5 ) );
+		UpdateFromKeyboard();
+		vr::VRServerDriverHost()->TrackedDevicePoseUpdated(device_index_, GetPose(), sizeof(vr::DriverPose_t));
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
 	}
 }
 
@@ -347,4 +366,9 @@ void MyHMDDisplayComponent::GetWindowBounds( int32_t *pnX, int32_t *pnY, uint32_
 	*pnY = config_.window_y;
 	*pnWidth = config_.window_width;
 	*pnHeight = config_.window_height;
+}
+
+
+bool MyHMDDisplayComponent::ComputeInverseDistortion(vr::HmdVector2_t*, vr::EVREye, uint32_t, float, float) {
+	return true;
 }

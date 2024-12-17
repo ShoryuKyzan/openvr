@@ -5,6 +5,10 @@ set(DRIVER_NAME "driver_${TARGET_NAME}")
 
 project(${TARGET_NAME})
 
+# Find required packages
+find_package(OpenGL REQUIRED)
+find_package(glfw3 REQUIRED)
+
 add_library(${DRIVER_NAME} SHARED
         src/hmd_driver_factory.cpp
         src/device_provider.h
@@ -16,7 +20,7 @@ add_library(${DRIVER_NAME} SHARED
 # This is so we can build directly to "<binary_dir>/<target_name>/<platform>/<arch>/<driver_name>.<dll/so>"
 set_target_properties(${DRIVER_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY $<1:${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/bin/${ARCH_TARGET}>)
 
-target_link_libraries(${DRIVER_NAME} PRIVATE ${OPENVR_LIBRARIES} util_driverlog util_vrmath)
+target_link_libraries(${DRIVER_NAME} PRIVATE ${OPENVR_LIBRARIES} util_driverlog util_vrmath OpenGL::GL glfw)
 target_include_directories(${DRIVER_NAME} PRIVATE ${OPENVR_INCLUDE_DIR})
 
 # Copy driver assets to output folder

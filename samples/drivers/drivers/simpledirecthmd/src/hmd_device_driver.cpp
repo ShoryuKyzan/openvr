@@ -1,10 +1,14 @@
 //============ Copyright (c) Valve Corporation, All rights reserved. ============
-#include "hmd_device_driver.h"
-
 #include "driverlog.h"
 #include "vrmath.h"
 #include <string.h>
 #include <Windows.h>
+#include <GL/glew.h>
+#include <GL/GL.h>
+#include <GLFW/glfw3.h>
+#include <map>
+#include "hmd_device_driver.h"
+
 
 // Let's create some variables for strings used in getting settings.
 // This is the section where all of the settings we want are stored. A section name can be anything,
@@ -279,96 +283,243 @@ const std::string &MyHMDControllerDeviceDriver::MyGetSerialNumber()
 MyHMDDirectDisplayComponent::MyHMDDirectDisplayComponent( const MyHMDDisplayDriverConfiguration &config )
 	: config_( config )
 {
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: To inform vrcompositor if this display is considered an on-desktop display.
-//-----------------------------------------------------------------------------
-bool MyHMDDirectDisplayComponent::IsDisplayOnDesktop()
-{
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: To as vrcompositor to search for this display.
-//-----------------------------------------------------------------------------
-bool MyHMDDirectDisplayComponent::IsDisplayRealDisplay()
-{
-	return false;
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: To inform the rest of the vr system what the recommended target size should be
-//-----------------------------------------------------------------------------
-void MyHMDDirectDisplayComponent::GetRecommendedRenderTargetSize( uint32_t *pnWidth, uint32_t *pnHeight )
-{
-	*pnWidth = config_.render_width;
-	*pnHeight = config_.render_height;
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: To inform vrcompositor how the screens should be organized.
-//-----------------------------------------------------------------------------
-void MyHMDDirectDisplayComponent::GetEyeOutputViewport( vr::EVREye eEye, uint32_t *pnX, uint32_t *pnY, uint32_t *pnWidth, uint32_t *pnHeight )
-{
-	*pnY = 0;
-
-	// Each eye will have half the window
-	*pnWidth = config_.window_width / 2;
-
-	// Each eye will have the full height
-	*pnHeight = config_.window_height;
-
-	if ( eEye == vr::Eye_Left )
-	{
-		// Left eye viewport on the left half of the window
-		*pnX = 0;
-	}
-	else
-	{
-		// Right eye viewport on the right half of the window
-		*pnX = config_.window_width / 2;
+	if (!InitializeGL()) {
+		DriverLog("Failed to initialize OpenGL");
 	}
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: To inform the compositor what the projection parameters are for this HMD.
-//-----------------------------------------------------------------------------
-void MyHMDDirectDisplayComponent::GetProjectionRaw( vr::EVREye eEye, float *pfLeft, float *pfRight, float *pfTop, float *pfBottom )
-{
-	*pfLeft = -1.0;
-	*pfRight = 1.0;
-	*pfTop = -1.0;
-	*pfBottom = 1.0;
+MyHMDDirectDisplayComponent::~MyHMDDirectDisplayComponent() {
+	ShutdownGL();
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: To compute the distortion properties for a given uv in an image.
-//-----------------------------------------------------------------------------
-vr::DistortionCoordinates_t MyHMDDirectDisplayComponent::ComputeDistortion( vr::EVREye eEye, float fU, float fV )
-{
-	vr::DistortionCoordinates_t coordinates{};
-	coordinates.rfBlue[ 0 ] = fU;
-	coordinates.rfBlue[ 1 ] = fV;
-	coordinates.rfGreen[ 0 ] = fU;
-	coordinates.rfGreen[ 1 ] = fV;
-	coordinates.rfRed[ 0 ] = fU;
-	coordinates.rfRed[ 1 ] = fV;
-	return coordinates;
-}
+bool MyHMDDirectDisplayComponent::InitializeGL() {
+	if (!glfwInit()) {
+		DriverLog("Failed to initialize GLFW");
+		return false;
+	}
 
-//-----------------------------------------------------------------------------
-// Purpose: To inform vrcompositor what the window bounds for this virtual HMD are.
-//-----------------------------------------------------------------------------
-void MyHMDDirectDisplayComponent::GetWindowBounds( int32_t *pnX, int32_t *pnY, uint32_t *pnWidth, uint32_t *pnHeight )
-{
-	*pnX = config_.window_x;
-	*pnY = config_.window_y;
-	*pnWidth = config_.window_width;
-	*pnHeight = config_.window_height;
-}
+	// Create window
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+	window_ = glfwCreateWindow(config_.window_width, config_.window_height, "SimpleDirectHMD", nullptr, nullptr);
+	if (!window_) {
+		DriverLog("Failed to create GLFW window");
+		glfwTerminate();
+		return false;
+	}
 
-bool MyHMDDirectDisplayComponent::ComputeInverseDistortion(vr::HmdVector2_t*, vr::EVREye, uint32_t, float, float) {
+	glfwMakeContextCurrent(window_);
+
+	// Initialize basic shader program and quad for texture display
+	const char* vertex_shader =
+		"#version 410\n"
+		"layout(location = 0) in vec2 position;\n"
+		"layout(location = 1) in vec2 texcoord;\n"
+		"out vec2 v_texcoord;\n"
+		"void main() {\n"
+		"    gl_Position = vec4(position, 0.0, 1.0);\n"
+		"    v_texcoord = texcoord;\n"
+		"}\n";
+
+	const char* fragment_shader =
+		"#version 410\n"
+		"in vec2 v_texcoord;\n"
+		"uniform sampler2D tex;\n"
+		"out vec4 fragColor;\n"
+		"void main() {\n"
+		"    fragColor = texture(tex, v_texcoord);\n"
+		"}\n";
+
+	// Compile vertex shader
+	GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vs, 1, &vertex_shader, nullptr);
+	glCompileShader(vs);
+
+	// Check vertex shader compilation
+	GLint success = 0;
+	glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
+	if (!success) {
+		GLchar infoLog[512];
+		glGetShaderInfoLog(vs, sizeof(infoLog), nullptr, infoLog);
+		DriverLog("Vertex shader compilation failed: %s", infoLog);
+		return false;
+	}
+
+	// Compile fragment shader
+	GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fs, 1, &fragment_shader, nullptr);
+	glCompileShader(fs);
+
+	// Check fragment shader compilation
+	glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
+	if (!success) {
+		GLchar infoLog[512];
+		glGetShaderInfoLog(fs, sizeof(infoLog), nullptr, infoLog);
+		DriverLog("Fragment shader compilation failed: %s", infoLog);
+		return false;
+	}
+
+	// Create and link shader program
+	shader_program_ = glCreateProgram();
+	glAttachShader(shader_program_, vs);
+	glAttachShader(shader_program_, fs);
+	glLinkProgram(shader_program_);
+
+	// Check program linking
+	glGetProgramiv(shader_program_, GL_LINK_STATUS, &success);
+	if (!success) {
+		GLchar infoLog[512];
+		glGetProgramInfoLog(shader_program_, sizeof(infoLog), nullptr, infoLog);
+		DriverLog("Shader program linking failed: %s", infoLog);
+		return false;
+	}
+
+	// Clean up shaders
+	glDeleteShader(vs);
+	glDeleteShader(fs);
+
+	// Create quad vertices (two triangles forming a rectangle)
+	float vertices[] = {
+		// positions    // texture coords
+		-1.0f,  1.0f,  0.0f, 1.0f,  // top left
+		-1.0f, -1.0f,  0.0f, 0.0f,  // bottom left
+		 1.0f, -1.0f,  1.0f, 0.0f,  // bottom right
+		-1.0f,  1.0f,  0.0f, 1.0f,  // top left
+		 1.0f, -1.0f,  1.0f, 0.0f,  // bottom right
+		 1.0f,  1.0f,  1.0f, 1.0f   // top right
+	};
+
+	// Create and bind VAO
+	glGenVertexArrays(1, &vertex_array_);
+	glBindVertexArray(vertex_array_);
+
+	// Create and bind VBO
+	glGenBuffers(1, &vertex_buffer_);
+	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	// Set vertex attributes
+	glEnableVertexAttribArray(0); // position
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(1); // texture coordinates
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+	// Set texture uniform
+	glUseProgram(shader_program_);
+	glUniform1i(glGetUniformLocation(shader_program_, "tex"), 0);
+
+	// Enable vsync
+	glfwSwapInterval(1);
+
 	return true;
 }
+
+void MyHMDDirectDisplayComponent::ShutdownGL() {
+	if (shader_program_) {
+		glDeleteProgram(shader_program_);
+		shader_program_ = 0;
+	}
+	
+	if (vertex_buffer_) {
+		glDeleteBuffers(1, &vertex_buffer_);
+		vertex_buffer_ = 0;
+	}
+	
+	if (vertex_array_) {
+		glDeleteVertexArrays(1, &vertex_array_);
+		vertex_array_ = 0;
+	}
+
+	if (window_) {
+		glfwDestroyWindow(window_);
+		window_ = nullptr;
+	}
+	
+	glfwTerminate();
+}
+
+void MyHMDDirectDisplayComponent::CreateSwapTextureSet(uint32_t unPid, 
+	const SwapTextureSetDesc_t* pSwapTextureSetDesc,
+	SwapTextureSet_t* pOutSwapTextureSet) 
+{
+	SwapTextureSet set;
+	set.current_index = 0;
+	
+	// Create two textures for the swap set
+	glGenTextures(2, set.textures);
+	for (int i = 0; i < 2; i++) {
+		glBindTexture(GL_TEXTURE_2D, set.textures[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 
+			pSwapTextureSetDesc->nWidth, pSwapTextureSetDesc->nHeight,
+			0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		
+		set.handles[i] = (vr::SharedTextureHandle_t)set.textures[i];
+		pOutSwapTextureSet->rSharedTextureHandles[i] = set.handles[i];
+	}
+	
+	texture_sets_by_process_[unPid].push_back(set);
+}
+
+void MyHMDDirectDisplayComponent::DestroySwapTextureSet(vr::SharedTextureHandle_t sharedTextureHandle) {
+	// Find and destroy the texture set containing this handle
+	for (auto& pair : texture_sets_by_process_) {
+		auto& sets = pair.second;
+		for (auto it = sets.begin(); it != sets.end(); ++it) {
+			if (it->handles[0] == sharedTextureHandle || it->handles[1] == sharedTextureHandle) {
+				glDeleteTextures(2, it->textures);
+				sets.erase(it);
+				return;
+			}
+		}
+	}
+}
+
+void MyHMDDirectDisplayComponent::DestroyAllSwapTextureSets(uint32_t unPid) {
+	auto it = texture_sets_by_process_.find(unPid);
+	if (it != texture_sets_by_process_.end()) {
+		for (auto& set : it->second) {
+			glDeleteTextures(2, set.textures);
+		}
+		texture_sets_by_process_.erase(it);
+	}
+}
+
+void MyHMDDirectDisplayComponent::GetNextSwapTextureSetIndex(
+	vr::SharedTextureHandle_t sharedTextureHandles[2], uint32_t(*pIndices)[2]) 
+{
+	// Toggle between 0 and 1 for double buffering
+	(*pIndices)[0] = (*pIndices)[1] = 0;
+}
+
+void MyHMDDirectDisplayComponent::SubmitLayer(const SubmitLayerPerEye_t(&perEye)[2]) {
+	// Store the textures to be rendered in Present()
+	for (int eye = 0; eye < 2; eye++) {
+		// Render the texture for each eye
+		GLuint tex = (GLuint)perEye[eye].hTexture;
+		RenderTexture(tex);
+	}
+}
+
+void MyHMDDirectDisplayComponent::Present(vr::SharedTextureHandle_t syncTexture) {
+	// Swap buffers to display the rendered content
+	glfwSwapBuffers(window_);
+	glfwPollEvents();
+}
+
+void MyHMDDirectDisplayComponent::RenderTexture(GLuint texture) {
+	glClear(GL_COLOR_BUFFER_BIT);
+	
+	glUseProgram(shader_program_);
+	glBindVertexArray(vertex_array_);
+	
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+

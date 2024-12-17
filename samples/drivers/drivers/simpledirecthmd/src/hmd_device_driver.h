@@ -3,10 +3,13 @@
 
 #include <array>
 #include <string>
+#include <map>
+#include <vector>
 
 #include "openvr_driver.h"
 #include <atomic>
 #include <thread>
+#include <GLFW\glfw3.h>
 
 enum MyComponent
 {
@@ -28,23 +31,52 @@ struct MyHMDDisplayDriverConfiguration
 	int32_t render_height;
 };
 
-class MyHMDDirectDisplayComponent : public vr::IVRDisplayComponent
+class MyHMDDirectDisplayComponent : public vr::IVRDriverDirectModeComponent
 {
 public:
+	~MyHMDDirectDisplayComponent();
 	explicit MyHMDDirectDisplayComponent( const MyHMDDisplayDriverConfiguration &config );
 
-	// ----- Functions to override vr::IVRDisplayComponent -----
-	bool IsDisplayOnDesktop() override;
-	bool IsDisplayRealDisplay() override;
-	void GetRecommendedRenderTargetSize( uint32_t *pnWidth, uint32_t *pnHeight ) override;
-	void GetEyeOutputViewport( vr::EVREye eEye, uint32_t *pnX, uint32_t *pnY, uint32_t *pnWidth, uint32_t *pnHeight ) override;
-	void GetProjectionRaw( vr::EVREye eEye, float *pfLeft, float *pfRight, float *pfTop, float *pfBottom ) override;
-	vr::DistortionCoordinates_t ComputeDistortion( vr::EVREye eEye, float fU, float fV ) override;
-	bool ComputeInverseDistortion(vr::HmdVector2_t*, vr::EVREye, uint32_t, float, float) override;
-	void GetWindowBounds( int32_t *pnX, int32_t *pnY, uint32_t *pnWidth, uint32_t *pnHeight ) override;
+	/** Called to allocate textures for applications to render into.  One of these per eye will be passed back to SubmitLayer each frame. */
+	void CreateSwapTextureSet( uint32_t unPid, const SwapTextureSetDesc_t *pSwapTextureSetDesc, SwapTextureSet_t *pOutSwapTextureSet ) override;
+
+	/** Used to textures created using CreateSwapTextureSet.  Only one of the set's handles needs to be used to destroy the entire set. */
+	void DestroySwapTextureSet( vr::SharedTextureHandle_t sharedTextureHandle ) override;
+
+	/** Used to purge all texture sets for a given process. */
+	void DestroyAllSwapTextureSets( uint32_t unPid ) override;
+
+	/** After Present returns, calls this to get the next index to use for rendering. */
+	void GetNextSwapTextureSetIndex( vr::SharedTextureHandle_t sharedTextureHandles[ 2 ], uint32_t( *pIndices )[ 2 ] ) override;
+
+	/** Call once per layer to draw for this frame.  One shared texture handle per eye.  Textures must be created
+	* using CreateSwapTextureSet and should be alternated per frame.  Call Present once all layers have been submitted. */
+	void SubmitLayer( const SubmitLayerPerEye_t( &perEye )[ 2 ] ) override;
+
+	/** Submits queued layers for display. */
+	void Present( vr::SharedTextureHandle_t syncTexture ) override;
 
 private:
 	MyHMDDisplayDriverConfiguration config_;
+
+	// OpenGL related members
+	GLFWwindow* window_ = nullptr;
+	GLuint shader_program_ = 0;
+	GLuint vertex_array_ = 0;
+	GLuint vertex_buffer_ = 0;
+	GLuint texture_id_ = 0;
+	
+	// Texture set management
+	struct SwapTextureSet {
+		vr::SharedTextureHandle_t handles[2];
+		GLuint textures[2];
+		int32_t current_index;
+	};
+	std::map<uint32_t, std::vector<SwapTextureSet>> texture_sets_by_process_;
+	
+	bool InitializeGL();
+	void ShutdownGL();
+	void RenderTexture(GLuint texture);
 };
 
 //-----------------------------------------------------------------------------

@@ -9,6 +9,8 @@
 //-----------------------------------------------------------------------------
 vr::EVRInitError MyDeviceProvider::Init( vr::IVRDriverContext *pDriverContext )
 {
+	DriverLog("MyDeviceProvider::Init called");
+	DriverLog( "XXX Startup" ); // XXX
 	// We need to initialise our driver context to make calls to the server.
 	// OpenVR provides a macro to do this for us.
 	VR_INIT_SERVER_DRIVER_CONTEXT( pDriverContext );
@@ -32,6 +34,7 @@ vr::EVRInitError MyDeviceProvider::Init( vr::IVRDriverContext *pDriverContext )
 //-----------------------------------------------------------------------------
 const char *const *MyDeviceProvider::GetInterfaceVersions()
 {
+	DriverLog("MyDeviceProvider::GetInterfaceVersions called");
 	return vr::k_InterfaceVersions;
 }
 
@@ -40,6 +43,7 @@ const char *const *MyDeviceProvider::GetInterfaceVersions()
 //-----------------------------------------------------------------------------
 bool MyDeviceProvider::ShouldBlockStandbyMode()
 {
+	DriverLog("MyDeviceProvider::ShouldBlockStandbyMode called");
 	return false;
 }
 
@@ -50,6 +54,7 @@ bool MyDeviceProvider::ShouldBlockStandbyMode()
 //-----------------------------------------------------------------------------
 void MyDeviceProvider::RunFrame()
 {
+	DriverLog("MyDeviceProvider::RunFrame called");
 	// call our devices to run a frame
 	if ( my_hmd_device_ != nullptr )
 	{
@@ -74,6 +79,7 @@ void MyDeviceProvider::RunFrame()
 //-----------------------------------------------------------------------------
 void MyDeviceProvider::EnterStandby()
 {
+	DriverLog("MyDeviceProvider::EnterStandby called");
 }
 
 //-----------------------------------------------------------------------------
@@ -82,6 +88,7 @@ void MyDeviceProvider::EnterStandby()
 //-----------------------------------------------------------------------------
 void MyDeviceProvider::LeaveStandby()
 {
+	DriverLog("MyDeviceProvider::LeaveStandby called");
 }
 
 //-----------------------------------------------------------------------------
@@ -91,6 +98,7 @@ void MyDeviceProvider::LeaveStandby()
 //-----------------------------------------------------------------------------
 void MyDeviceProvider::Cleanup()
 {
+	DriverLog("MyDeviceProvider::Cleanup called");
 	// Our controller devices will have already deactivated. Let's now destroy them.
 	my_hmd_device_ = nullptr;
 }

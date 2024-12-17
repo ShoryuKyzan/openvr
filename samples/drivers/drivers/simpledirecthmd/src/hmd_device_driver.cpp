@@ -19,6 +19,7 @@ static const char *my_hmd_display_settings_section = "simplehmd_display";
 
 MyHMDControllerDeviceDriver::MyHMDControllerDeviceDriver()
 {
+	DriverLog("MyHMDControllerDeviceDriver constructor called"); // XXX
 	// Keep track of whether Activate() has been called
 	is_active_ = false;
 
@@ -61,6 +62,7 @@ MyHMDControllerDeviceDriver::MyHMDControllerDeviceDriver()
 //-----------------------------------------------------------------------------
 vr::EVRInitError MyHMDControllerDeviceDriver::Activate( uint32_t unObjectId )
 {
+	DriverLog("MyHMDControllerDeviceDriver::Activate called"); // XXX
 	// Let's keep track of our device index. It'll be useful later.
 	// Also, if we re-activate, be sure to set this.
 	device_index_ = unObjectId;
@@ -127,6 +129,7 @@ vr::EVRInitError MyHMDControllerDeviceDriver::Activate( uint32_t unObjectId )
 //-----------------------------------------------------------------------------
 void *MyHMDControllerDeviceDriver::GetComponent( const char *pchComponentNameAndVersion )
 {
+	DriverLog("MyHMDControllerDeviceDriver::GetComponent called"); // XXX
 	if ( strcmp( pchComponentNameAndVersion, vr::IVRDisplayComponent_Version ) == 0 )
 	{
 		return my_display_component_.get();
@@ -141,6 +144,7 @@ void *MyHMDControllerDeviceDriver::GetComponent( const char *pchComponentNameAnd
 //-----------------------------------------------------------------------------
 void MyHMDControllerDeviceDriver::DebugRequest( const char *pchRequest, char *pchResponseBuffer, uint32_t unResponseBufferSize )
 {
+	DriverLog("MyHMDControllerDeviceDriver::DebugRequest called"); // XXX
 	if ( unResponseBufferSize >= 1 )
 		pchResponseBuffer[ 0 ] = 0;
 }
@@ -151,6 +155,7 @@ void MyHMDControllerDeviceDriver::DebugRequest( const char *pchRequest, char *pc
 //-----------------------------------------------------------------------------
 vr::DriverPose_t MyHMDControllerDeviceDriver::GetPose()
 {
+	DriverLog("MyHMDControllerDeviceDriver::GetPose called"); // XXX
 	vr::DriverPose_t pose = { 0 };
 
 	pose.qWorldFromDriverRotation.w = 1.f;
@@ -177,6 +182,7 @@ vr::DriverPose_t MyHMDControllerDeviceDriver::GetPose()
 
 void MyHMDControllerDeviceDriver::UpdateFromKeyboard()
 {
+	DriverLog("MyHMDControllerDeviceDriver::UpdateFromKeyboard called"); // XXX
 	const float move_speed = 0.01f;
 	const float rotate_speed = 0.02f;
 
@@ -209,6 +215,7 @@ void MyHMDControllerDeviceDriver::UpdateFromKeyboard()
 
 void MyHMDControllerDeviceDriver::MyPoseUpdateThread()
 {
+	DriverLog("MyHMDControllerDeviceDriver::MyPoseUpdateThread called"); // XXX
 	while (is_active_)
 	{
 		UpdateFromKeyboard();
@@ -224,6 +231,7 @@ void MyHMDControllerDeviceDriver::MyPoseUpdateThread()
 //-----------------------------------------------------------------------------
 void MyHMDControllerDeviceDriver::EnterStandby()
 {
+	DriverLog("MyHMDControllerDeviceDriver::EnterStandby called"); // XXX
 	DriverLog( "HMD has been put into standby." );
 }
 
@@ -234,6 +242,7 @@ void MyHMDControllerDeviceDriver::EnterStandby()
 //-----------------------------------------------------------------------------
 void MyHMDControllerDeviceDriver::Deactivate()
 {
+	DriverLog("MyHMDControllerDeviceDriver::Deactivate called"); // XXX
 	// Let's join our pose thread that's running
 	// by first checking then setting is_active_ to false to break out
 	// of the while loop, if it's running, then call .join() on the thread
@@ -253,6 +262,7 @@ void MyHMDControllerDeviceDriver::Deactivate()
 //-----------------------------------------------------------------------------
 void MyHMDControllerDeviceDriver::MyRunFrame()
 {
+	DriverLog("MyHMDControllerDeviceDriver::MyRunFrame called"); // XXX
 	frame_number_++;
 	// update our inputs here
 }
@@ -264,6 +274,7 @@ void MyHMDControllerDeviceDriver::MyRunFrame()
 //-----------------------------------------------------------------------------
 void MyHMDControllerDeviceDriver::MyProcessEvent( const vr::VREvent_t &vrevent )
 {
+	DriverLog("MyHMDControllerDeviceDriver::MyProcessEvent called"); // XXX
 }
 
 
@@ -273,6 +284,7 @@ void MyHMDControllerDeviceDriver::MyProcessEvent( const vr::VREvent_t &vrevent )
 //-----------------------------------------------------------------------------
 const std::string &MyHMDControllerDeviceDriver::MyGetSerialNumber()
 {
+	DriverLog("MyHMDControllerDeviceDriver::MyGetSerialNumber called"); // XXX
 	return my_hmd_serial_number_;
 }
 
@@ -283,16 +295,19 @@ const std::string &MyHMDControllerDeviceDriver::MyGetSerialNumber()
 MyHMDDirectDisplayComponent::MyHMDDirectDisplayComponent( const MyHMDDisplayDriverConfiguration &config )
 	: config_( config )
 {
+	DriverLog("MyHMDDirectDisplayComponent constructor called"); // XXX
 	if (!InitializeGL()) {
 		DriverLog("Failed to initialize OpenGL");
 	}
 }
 
 MyHMDDirectDisplayComponent::~MyHMDDirectDisplayComponent() {
+	DriverLog("MyHMDDirectDisplayComponent destructor called"); // XXX
 	ShutdownGL();
 }
 
 bool MyHMDDirectDisplayComponent::InitializeGL() {
+	DriverLog("MyHMDDirectDisplayComponent::InitializeGL called"); // XXX
 	if (!glfwInit()) {
 		DriverLog("Failed to initialize GLFW");
 		return false;
@@ -418,6 +433,7 @@ bool MyHMDDirectDisplayComponent::InitializeGL() {
 }
 
 void MyHMDDirectDisplayComponent::ShutdownGL() {
+	DriverLog("MyHMDDirectDisplayComponent::ShutdownGL called"); // XXX
 	if (shader_program_) {
 		glDeleteProgram(shader_program_);
 		shader_program_ = 0;
@@ -445,6 +461,7 @@ void MyHMDDirectDisplayComponent::CreateSwapTextureSet(uint32_t unPid,
 	const SwapTextureSetDesc_t* pSwapTextureSetDesc,
 	SwapTextureSet_t* pOutSwapTextureSet) 
 {
+	DriverLog("MyHMDDirectDisplayComponent::CreateSwapTextureSet called"); // XXX
 	SwapTextureSet set;
 	set.current_index = 0;
 	
@@ -466,6 +483,7 @@ void MyHMDDirectDisplayComponent::CreateSwapTextureSet(uint32_t unPid,
 }
 
 void MyHMDDirectDisplayComponent::DestroySwapTextureSet(vr::SharedTextureHandle_t sharedTextureHandle) {
+	DriverLog("MyHMDDirectDisplayComponent::DestroySwapTextureSet called"); // XXX
 	// Find and destroy the texture set containing this handle
 	for (auto& pair : texture_sets_by_process_) {
 		auto& sets = pair.second;
@@ -480,6 +498,7 @@ void MyHMDDirectDisplayComponent::DestroySwapTextureSet(vr::SharedTextureHandle_
 }
 
 void MyHMDDirectDisplayComponent::DestroyAllSwapTextureSets(uint32_t unPid) {
+	DriverLog("MyHMDDirectDisplayComponent::DestroyAllSwapTextureSets called"); // XXX
 	auto it = texture_sets_by_process_.find(unPid);
 	if (it != texture_sets_by_process_.end()) {
 		for (auto& set : it->second) {
@@ -492,11 +511,13 @@ void MyHMDDirectDisplayComponent::DestroyAllSwapTextureSets(uint32_t unPid) {
 void MyHMDDirectDisplayComponent::GetNextSwapTextureSetIndex(
 	vr::SharedTextureHandle_t sharedTextureHandles[2], uint32_t(*pIndices)[2]) 
 {
+	DriverLog("MyHMDDirectDisplayComponent::GetNextSwapTextureSetIndex called"); // XXX
 	// Toggle between 0 and 1 for double buffering
 	(*pIndices)[0] = (*pIndices)[1] = 0;
 }
 
 void MyHMDDirectDisplayComponent::SubmitLayer(const SubmitLayerPerEye_t(&perEye)[2]) {
+	DriverLog("MyHMDDirectDisplayComponent::SubmitLayer called"); // XXX
 	// Store the textures to be rendered in Present()
 	for (int eye = 0; eye < 2; eye++) {
 		// Render the texture for each eye
@@ -506,12 +527,14 @@ void MyHMDDirectDisplayComponent::SubmitLayer(const SubmitLayerPerEye_t(&perEye)
 }
 
 void MyHMDDirectDisplayComponent::Present(vr::SharedTextureHandle_t syncTexture) {
+	DriverLog("MyHMDDirectDisplayComponent::Present called"); // XXX
 	// Swap buffers to display the rendered content
 	glfwSwapBuffers(window_);
 	glfwPollEvents();
 }
 
 void MyHMDDirectDisplayComponent::RenderTexture(GLuint texture) {
+	DriverLog("MyHMDDirectDisplayComponent::RenderTexture called"); // XXX
 	glClear(GL_COLOR_BUFFER_BIT);
 	
 	glUseProgram(shader_program_);
@@ -522,4 +545,3 @@ void MyHMDDirectDisplayComponent::RenderTexture(GLuint texture) {
 	
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 }
-

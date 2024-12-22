@@ -49,6 +49,8 @@ MyHMDControllerDeviceDriver::MyHMDControllerDeviceDriver()
 
 	// Instantiate our display component
 	my_display_component_ = std::make_unique< MyHMDDisplayComponent >( display_configuration );
+
+	lastTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 //-----------------------------------------------------------------------------
@@ -141,6 +143,49 @@ void MyHMDControllerDeviceDriver::DebugRequest( const char *pchRequest, char *pc
 		pchResponseBuffer[ 0 ] = 0;
 }
 
+// Given:
+// q1, q2 are two quaternions from poses at different times
+// dt is time difference between poses in seconds
+
+vr::HmdVector3_t MyHMDControllerDeviceDriver::ComputeAngularVelocity(const vr::HmdQuaternion_t& q1, 
+                                       const vr::HmdQuaternion_t& q2, 
+                                       long dt) {
+	// // Get relative rotation between poses
+    // // q_diff = q2 * q1.inverse()
+	// this might be correct, not sure
+    vr::HmdQuaternion_t q_diff;
+    q_diff.w = q2.w * q1.w + q2.x * q1.x + q2.y * q1.y + q2.z * q1.z;
+    q_diff.x = q2.w * q1.x - q2.x * q1.w - q2.y * q1.z + q2.z * q1.y;
+    q_diff.y = q2.w * q1.y + q2.x * q1.z - q2.y * q1.w - q2.z * q1.x;
+    q_diff.z = q2.w * q1.z - q2.x * q1.y + q2.y * q1.x - q2.z * q1.w;
+
+    // Convert to axis-angle
+    float angle = 2.0f * acos(q_diff.w);
+    
+    vr::HmdVector3_t axis;
+    float s = sqrt(1.0f - q_diff.w * q_diff.w); // sin(angle/2)
+    
+    if (s < 0.0001f) { // If angle is very small, avoid division by zero
+        axis = {0, 0, 0};
+    } else {
+        // Normalize the axis
+        float recip = 1.0f / s;
+        axis.v[0] = q_diff.x * recip;
+        axis.v[1] = q_diff.y * recip;
+        axis.v[2] = q_diff.z * recip;
+    }
+
+    // Scale by angle/dt to get angular velocity
+    // Direction is rotation axis, magnitude is radians/second
+    vr::HmdVector3_t angularVelocity;
+    float scale = angle / dt;
+    angularVelocity.v[0] = axis.v[0] * scale;
+    angularVelocity.v[1] = axis.v[1] * scale;
+    angularVelocity.v[2] = axis.v[2] * scale;
+
+    return angularVelocity;
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: This is never called by vrserver in recent OpenVR versions,
 // but is useful for giving data to vr::VRServerDriverHost::TrackedDevicePoseUpdated.
@@ -159,9 +204,23 @@ vr::DriverPose_t MyHMDControllerDeviceDriver::GetPose()
 	pose.vecPosition[1] = keyboard_input_.y;
 	pose.vecPosition[2] = keyboard_input_.z;
 
-	// pose.vecVelocity[0] = keyboard_input_.x;
-	// pose.vecVelocity[1] = keyboard_input_.y;
-	// pose.vecVelocity[2] = keyboard_input_.z;
+	long now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	long delta = now - lastTime;
+	lastTime = now;
+	vr::HmdVector3_t av = ComputeAngularVelocity(qRotation_last, pose.qRotation, delta);
+
+	pose.vecAngularVelocity[0] = av.v[0];
+	pose.vecAngularVelocity[1] = av.v[1];
+	pose.vecAngularVelocity[2] = av.v[2];
+	
+	pose.vecVelocity[0] = (keyboard_input_last_.x - keyboard_input_.x) / (delta / 1000.0f);
+	pose.vecVelocity[1] = (keyboard_input_last_.y - keyboard_input_.y) / (delta / 1000.0f);
+	pose.vecVelocity[2] = (keyboard_input_last_.z - keyboard_input_.z) / (delta / 1000.0f);
+
+	keyboard_input_last_.x = keyboard_input_.x;
+	keyboard_input_last_.y = keyboard_input_.y;
+	keyboard_input_last_.z = keyboard_input_.z;
+	qRotation_last = pose.qRotation;
 
 	pose.poseIsValid = true;
 	pose.deviceIsConnected = true;
@@ -171,9 +230,11 @@ vr::DriverPose_t MyHMDControllerDeviceDriver::GetPose()
 	return pose;
 }
 
+
+
 void MyHMDControllerDeviceDriver::UpdateFromKeyboard()
 {
-	const float move_speed = 0.2f;
+	const float move_speed = 0.01f;
 	const float rotate_speed = 0.02f;
 
 	// Reset control
@@ -184,6 +245,12 @@ void MyHMDControllerDeviceDriver::UpdateFromKeyboard()
 		keyboard_input_.yaw = 0.0f;
 		keyboard_input_.pitch = 0.0f;
 		keyboard_input_.roll = 0.0f;
+		keyboard_input_last_.x = 0.0f;
+		keyboard_input_last_.y = 0.0f;
+		keyboard_input_last_.z = 0.0f;
+		keyboard_input_last_.yaw = 0.0f;
+		keyboard_input_last_.pitch = 0.0f;
+		keyboard_input_last_.roll = 0.0f;
 	}
 
 	// Position controls

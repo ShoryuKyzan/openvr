@@ -81,6 +81,10 @@ public:
 	void MyPoseUpdateThread();
 
 private:
+
+	vr::HmdVector3_t ComputeAngularVelocity(const vr::HmdQuaternion_t& q1,
+		const vr::HmdQuaternion_t& q2,
+		long dt);
 	std::unique_ptr< MyHMDDisplayComponent > my_display_component_;
 
 	std::string my_hmd_model_number_;
@@ -94,4 +98,8 @@ private:
 	std::thread my_pose_update_thread_;
 
 	KeyboardInput keyboard_input_;
+	KeyboardInput keyboard_input_last_;
+	vr::HmdQuaternion_t qRotation_last;
+
+	long lastTime;
 };

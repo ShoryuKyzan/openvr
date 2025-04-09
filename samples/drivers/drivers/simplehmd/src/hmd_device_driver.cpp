@@ -12,6 +12,7 @@
 // ie "<my_driver>_<section>" to avoid collisions
 static const char *my_hmd_main_settings_section = "driver_simplehmd";
 static const char *my_hmd_display_settings_section = "simplehmd_display";
+static const char *my_hmd_devices_settings_section_hmd = "simplehmd_device_hmd";
 
 MyHMDControllerDeviceDriver::MyHMDControllerDeviceDriver()
 {
@@ -46,7 +47,15 @@ MyHMDControllerDeviceDriver::MyHMDControllerDeviceDriver()
 
 	display_configuration.render_width = vr::VRSettings()->GetInt32( my_hmd_display_settings_section, "render_width" );
 	display_configuration.render_height = vr::VRSettings()->GetInt32( my_hmd_display_settings_section, "render_height" );
-
+	
+	// init defaults info for hmd
+	keyboard_input_.x = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialXMeters" );
+	keyboard_input_.y = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialYMeters" );
+	keyboard_input_.z = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialZMeters" );
+	keyboard_input_.yaw = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialYawEuler" );
+	keyboard_input_.pitch = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialPitchEuler" );
+	keyboard_input_.roll = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialRollEuler" );
+	memcpy(&keyboard_input_last_, &keyboard_input_, sizeof(KeyboardInput));
 	// Instantiate our display component
 	my_display_component_ = std::make_unique< MyHMDDisplayComponent >( display_configuration );
 

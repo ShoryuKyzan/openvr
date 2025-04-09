@@ -13,5 +13,13 @@
 	    "render_height": 512,
 	    "vsync_to_photons": 0.011,
 	    "display_frequency": 0
+	},
+	"simplehmd_device_hmd": {
+	    "initialXMeters": 0,
+	    "initialYMeters": 2,
+	    "initialZMeters": 0,
+	    "initialYawEuler": 0,
+	    "initialPitchEuler": 0,
+	    "initialRollEuler": 0
 	}
 }

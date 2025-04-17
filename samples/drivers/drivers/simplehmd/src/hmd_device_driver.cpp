@@ -239,44 +239,56 @@ vr::DriverPose_t MyHMDControllerDeviceDriver::GetPose()
 	return pose;
 }
 
-
+// Add a static global variable to control input
+static bool input_enabled = true;
 
 void MyHMDControllerDeviceDriver::UpdateFromKeyboard()
 {
-	const float move_speed = 0.01f;
-	const float rotate_speed = 0.02f;
-
-	// Reset control
-	if (GetAsyncKeyState('R') & 0x8000) {
-		keyboard_input_.x = 0.0f;
-		keyboard_input_.y = 0.0f; 
-		keyboard_input_.z = 0.0f;
-		keyboard_input_.yaw = 0.0f;
-		keyboard_input_.pitch = 0.0f;
-		keyboard_input_.roll = 0.0f;
-		keyboard_input_last_.x = 0.0f;
-		keyboard_input_last_.y = 0.0f;
-		keyboard_input_last_.z = 0.0f;
-		keyboard_input_last_.yaw = 0.0f;
-		keyboard_input_last_.pitch = 0.0f;
-		keyboard_input_last_.roll = 0.0f;
+	// Check for enabling/disabling input
+	if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && (GetAsyncKeyState('1') & 0x8000)) {
+		input_enabled = true;
+	}
+	if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && ((GetAsyncKeyState('2') & 0x8000) || (GetAsyncKeyState('3') & 0x8000))) {
+		input_enabled = false;
 	}
 
-	// Position controls
-	if (GetAsyncKeyState('A') & 0x8000) keyboard_input_.x -= move_speed;  // Left
-	if (GetAsyncKeyState('D') & 0x8000) keyboard_input_.x += move_speed;  // Right
-	if (GetAsyncKeyState('W') & 0x8000) keyboard_input_.z -= move_speed;  // Forward
-	if (GetAsyncKeyState('S') & 0x8000) keyboard_input_.z += move_speed;  // Back
-	if (GetAsyncKeyState('Q') & 0x8000) keyboard_input_.y -= move_speed;  // Down
-	if (GetAsyncKeyState('E') & 0x8000) keyboard_input_.y += move_speed;  // Up
+	// Process inputs only if input is enabled
+	if (input_enabled) {
+		const float move_speed = 0.01f;
+		const float rotate_speed = 0.02f;
 
-	// Rotation controls
-	if (GetAsyncKeyState(VK_LEFT) & 0x8000) keyboard_input_.yaw -= rotate_speed;   // Turn left
-	if (GetAsyncKeyState(VK_RIGHT) & 0x8000) keyboard_input_.yaw += rotate_speed;  // Turn right
-	if (GetAsyncKeyState(VK_UP) & 0x8000) keyboard_input_.pitch -= rotate_speed;   // Look up
-	if (GetAsyncKeyState(VK_DOWN) & 0x8000) keyboard_input_.pitch += rotate_speed; // Look down
-	if (GetAsyncKeyState(VK_PRIOR) & 0x8000) keyboard_input_.roll -= rotate_speed; // Roll left (Page Up)
-	if (GetAsyncKeyState(VK_NEXT) & 0x8000) keyboard_input_.roll += rotate_speed;  // Roll right (Page Down)
+		// Reset control
+		if (GetAsyncKeyState('R') & 0x8000) {
+			keyboard_input_.x = 0.0f;
+			keyboard_input_.y = 0.0f; 
+			keyboard_input_.z = 0.0f;
+			keyboard_input_.yaw = 0.0f;
+			keyboard_input_.pitch = 0.0f;
+			keyboard_input_.roll = 0.0f;
+			keyboard_input_last_.x = 0.0f;
+			keyboard_input_last_.y = 0.0f;
+			keyboard_input_last_.z = 0.0f;
+			keyboard_input_last_.yaw = 0.0f;
+			keyboard_input_last_.pitch = 0.0f;
+			keyboard_input_last_.roll = 0.0f;
+		}
+
+		// Position controls
+		if (GetAsyncKeyState('A') & 0x8000) keyboard_input_.x -= move_speed;  // Left
+		if (GetAsyncKeyState('D') & 0x8000) keyboard_input_.x += move_speed;  // Right
+		if (GetAsyncKeyState('W') & 0x8000) keyboard_input_.z -= move_speed;  // Forward
+		if (GetAsyncKeyState('S') & 0x8000) keyboard_input_.z += move_speed;  // Back
+		if (GetAsyncKeyState('Q') & 0x8000) keyboard_input_.y -= move_speed;  // Down
+		if (GetAsyncKeyState('E') & 0x8000) keyboard_input_.y += move_speed;  // Up
+
+		// Rotation controls
+		if (GetAsyncKeyState(VK_LEFT) & 0x8000) keyboard_input_.yaw -= rotate_speed;   // Turn left
+		if (GetAsyncKeyState(VK_RIGHT) & 0x8000) keyboard_input_.yaw += rotate_speed;  // Turn right
+		if (GetAsyncKeyState(VK_UP) & 0x8000) keyboard_input_.pitch -= rotate_speed;   // Look up
+		if (GetAsyncKeyState(VK_DOWN) & 0x8000) keyboard_input_.pitch += rotate_speed; // Look down
+		if (GetAsyncKeyState(VK_PRIOR) & 0x8000) keyboard_input_.roll -= rotate_speed; // Roll left (Page Up)
+		if (GetAsyncKeyState(VK_NEXT) & 0x8000) keyboard_input_.roll += rotate_speed;  // Roll right (Page Down)
+	}
 }
 
 void MyHMDControllerDeviceDriver::MyPoseUpdateThread()

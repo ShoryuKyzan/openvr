@@ -4,6 +4,9 @@
 #include "driverlog.h"
 #include "vrmath.h"
 
+#include <atomic>
+#include <windows.h> // For GetAsyncKeyState
+
 // Let's create some variables for strings used in getting settings.
 // This is the section where all of the settings we want are stored. A section name can be anything,
 // but if you want to store driver specific settings, it's best to namespace the section with the driver identifier
@@ -18,6 +21,10 @@ static const char *my_controller_left_settings_section = "driver_simplecontrolle
 static const char *my_controller_settings_key_model_number = "mycontroller_model_number";
 static const char *my_controller_settings_key_serial_number = "mycontroller_serial_number";
 
+// Add static variables to track position, rotation, and input state
+static std::atomic<bool> input_enabled(false);
+static float custom_x = 0.0f, custom_y = 0.0f, custom_z = 0.0f;
+static float custom_yaw = 0.0f, custom_pitch = 0.0f, custom_roll = 0.0f;
 
 MyControllerDeviceDriver::MyControllerDeviceDriver( vr::ETrackedControllerRole role )
 {
@@ -138,6 +145,56 @@ void MyControllerDeviceDriver::DebugRequest( const char *pchRequest, char *pchRe
 //-----------------------------------------------------------------------------
 vr::DriverPose_t MyControllerDeviceDriver::GetPose()
 {
+	// Check for keyboard input if input is enabled
+
+	// Handle special keys (Ctrl+1, Ctrl+2, Ctrl+3)
+	if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && 
+		(GetAsyncKeyState('1') & 0x8000)) 
+	{
+		input_enabled = false; // Ctrl+1: Disable input for HMD
+	}
+	if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && 
+		(GetAsyncKeyState('2') & 0x8000) && 
+		my_controller_role_ == vr::TrackedControllerRole_LeftHand) 
+	{
+		input_enabled = true; // Ctrl+2: Enable input if the controller is the left hand
+	}
+	if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && 
+		(GetAsyncKeyState('3') & 0x8000) && 
+		my_controller_role_ == vr::TrackedControllerRole_RightHand) 
+	{
+		input_enabled = true; // Ctrl+3: Enable input if the controller is the right hand
+	}
+	
+	const float movement_speed = 0.01f;
+	const float angle_change = 0.5f;
+	if (input_enabled)
+	{
+
+		if (GetAsyncKeyState('R') & 0x8000) 
+		{
+			custom_x = 0.0f;
+			custom_y = 0.0f;
+			custom_z = 0.0f;
+			custom_yaw = 0.0f;
+			custom_pitch = 0.0f;
+			custom_roll = 0.0f;
+		}
+		// Update position and rotation based on key states
+		if (GetAsyncKeyState(VK_UP) & 0x8000) custom_yaw += angle_change;    // Up arrow
+		if (GetAsyncKeyState(VK_DOWN) & 0x8000) custom_yaw -= angle_change;  // Down arrow
+		if (GetAsyncKeyState(VK_LEFT) & 0x8000) custom_pitch -= angle_change;   // Left arrow
+		if (GetAsyncKeyState(VK_RIGHT) & 0x8000) custom_pitch += angle_change;  // Right arrow
+		if (GetAsyncKeyState(VK_PRIOR) & 0x8000) custom_roll += angle_change;  // Page Up
+		if (GetAsyncKeyState(VK_NEXT) & 0x8000) custom_roll -= angle_change;   // Page Down
+		if (GetAsyncKeyState('W') & 0x8000) custom_z -= movement_speed;        // W key
+		if (GetAsyncKeyState('S') & 0x8000) custom_z += movement_speed;        // S key
+		if (GetAsyncKeyState('A') & 0x8000) custom_x -= movement_speed;        // A key
+		if (GetAsyncKeyState('D') & 0x8000) custom_x += movement_speed;        // D key
+		if (GetAsyncKeyState('Q') & 0x8000) custom_y += movement_speed;        // Q key
+		if (GetAsyncKeyState('E') & 0x8000) custom_y -= movement_speed;        // E key
+	}
+
 	// Let's retrieve the Hmd pose to base our controller pose off.
 
 	// First, initialize the struct that we'll be submitting to the runtime to tell it we've updated our pose.
@@ -159,7 +216,9 @@ vr::DriverPose_t MyControllerDeviceDriver::GetPose()
 	const vr::HmdQuaternion_t hmd_orientation = HmdQuaternion_FromMatrix( hmd_pose.mDeviceToAbsoluteTracking );
 
 	// pitch the controller 90 degrees so the face of the controller is facing towards us
-	const vr::HmdQuaternion_t offset_orientation = HmdQuaternion_FromEulerAngles( 0.f, DEG_TO_RAD(90.f), 0.f );
+	// add the custom rotation
+	const vr::HmdQuaternion_t offset_orientation = HmdQuaternion_FromEulerAngles(
+		DEG_TO_RAD(custom_pitch), DEG_TO_RAD(90.f + custom_yaw), DEG_TO_RAD(custom_roll));
 
 	// Set the pose orientation to the hmd orientation with the offset applied.
 	pose.qRotation = hmd_orientation * offset_orientation;
@@ -173,10 +232,10 @@ vr::DriverPose_t MyControllerDeviceDriver::GetPose()
 	// Rotate our offset by the hmd quaternion (so the controllers are always facing towards us), and add then add the position of the hmd to put it into position.
 	const vr::HmdVector3_t position = hmd_position + ( offset_position * hmd_orientation );
 
-	// copy our position to our pose
-	pose.vecPosition[ 0 ] = position.v[ 0 ];
-	pose.vecPosition[ 1 ] = position.v[ 1 ];
-	pose.vecPosition[ 2 ] = position.v[ 2 ];
+	// copy our position to our pose, and include the keyboard offsets
+	pose.vecPosition[ 0 ] = position.v[ 0 ] + custom_x;
+	pose.vecPosition[ 1 ] = position.v[ 1 ] + custom_y;
+	pose.vecPosition[ 2 ] = position.v[ 2 ] + custom_z;
 
 	// The pose we provided is valid.
 	// This should be set is

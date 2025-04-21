@@ -102,4 +102,5 @@ private:
 	vr::HmdQuaternion_t qRotation_last;
 
 	long lastTime;
+	bool input_enabled_;
 };

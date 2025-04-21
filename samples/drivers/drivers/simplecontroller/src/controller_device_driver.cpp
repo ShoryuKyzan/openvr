@@ -21,10 +21,6 @@ static const char *my_controller_left_settings_section = "driver_simplecontrolle
 static const char *my_controller_settings_key_model_number = "mycontroller_model_number";
 static const char *my_controller_settings_key_serial_number = "mycontroller_serial_number";
 
-// Add static variables to track position, rotation, and input state
-static std::atomic<bool> input_enabled(false);
-static float custom_x = 0.0f, custom_y = 0.0f, custom_z = 0.0f;
-static float custom_yaw = 0.0f, custom_pitch = 0.0f, custom_roll = 0.0f;
 
 MyControllerDeviceDriver::MyControllerDeviceDriver( vr::ETrackedControllerRole role )
 {
@@ -53,6 +49,15 @@ MyControllerDeviceDriver::MyControllerDeviceDriver( vr::ETrackedControllerRole r
 	// "<driver_name>:". You can search this in the top search bar to find the info that you've logged.
 	DriverLog( "My Controller Model Number: %s", my_controller_model_number_.c_str() );
 	DriverLog( "My Controller Serial Number: %s", my_controller_serial_number_.c_str() );
+
+	input_enabled_ = false;
+	custom_x = 0.0f;
+	custom_y = 0.0f;
+	custom_z = 0.0f;
+	custom_yaw = 0.0f;
+	custom_pitch = 0.0f;
+	custom_roll = 0.0f;
+
 }
 
 //-----------------------------------------------------------------------------
@@ -145,32 +150,37 @@ void MyControllerDeviceDriver::DebugRequest( const char *pchRequest, char *pchRe
 //-----------------------------------------------------------------------------
 vr::DriverPose_t MyControllerDeviceDriver::GetPose()
 {
-	// Check for keyboard input if input is enabled
-
-	// Handle special keys (Ctrl+1, Ctrl+2, Ctrl+3)
+	// Ctrl+1 - HMD
 	if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && 
 		(GetAsyncKeyState('1') & 0x8000)) 
 	{
-		input_enabled = false; // Ctrl+1: Disable input for HMD
+		input_enabled_ = false; // Ctrl+1: Disable input for HMD
 	}
+	// Ctrl+2 - Left controller
 	if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && 
-		(GetAsyncKeyState('2') & 0x8000) && 
-		my_controller_role_ == vr::TrackedControllerRole_LeftHand) 
+		(GetAsyncKeyState('2') & 0x8000)) 
 	{
-		input_enabled = true; // Ctrl+2: Enable input if the controller is the left hand
+		if(my_controller_role_ == vr::TrackedControllerRole_LeftHand){
+			input_enabled_ = true;
+		} else {
+			input_enabled_ = false;
+		}
 	}
+	// Ctrl+3 - Right controller
 	if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && 
-		(GetAsyncKeyState('3') & 0x8000) && 
-		my_controller_role_ == vr::TrackedControllerRole_RightHand) 
+		(GetAsyncKeyState('3') & 0x8000)) 
 	{
-		input_enabled = true; // Ctrl+3: Enable input if the controller is the right hand
+		if(my_controller_role_ == vr::TrackedControllerRole_RightHand){
+			input_enabled_ = true;
+		} else {
+			input_enabled_ = false;
+		}
 	}
 	
 	const float movement_speed = 0.01f;
 	const float angle_change = 0.5f;
-	if (input_enabled)
+	if (input_enabled_)
 	{
-
 		if (GetAsyncKeyState('R') & 0x8000) 
 		{
 			custom_x = 0.0f;

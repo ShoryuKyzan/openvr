@@ -15,6 +15,7 @@ static const char *my_hmd_display_settings_section = "simplehmd_display";
 static const char *my_hmd_devices_settings_section_hmd = "simplehmd_device_hmd";
 
 MyHMDControllerDeviceDriver::MyHMDControllerDeviceDriver()
+	: input_enabled_(true) // Initialize input_enabled_ in the constructor
 {
 	// Keep track of whether Activate() has been called
 	is_active_ = false;
@@ -239,21 +240,18 @@ vr::DriverPose_t MyHMDControllerDeviceDriver::GetPose()
 	return pose;
 }
 
-// Add a static global variable to control input
-static bool input_enabled = true;
-
 void MyHMDControllerDeviceDriver::UpdateFromKeyboard()
 {
 	// Check for enabling/disabling input
 	if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && (GetAsyncKeyState('1') & 0x8000)) {
-		input_enabled = true;
+		input_enabled_ = true;
 	}
 	if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && ((GetAsyncKeyState('2') & 0x8000) || (GetAsyncKeyState('3') & 0x8000))) {
-		input_enabled = false;
+		input_enabled_ = false;
 	}
 
 	// Process inputs only if input is enabled
-	if (input_enabled) {
+	if (input_enabled_) {
 		const float move_speed = 0.01f;
 		const float rotate_speed = 0.02f;
 

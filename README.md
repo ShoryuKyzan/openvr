@@ -3,7 +3,7 @@ OpenVR SDK
 
 # Fork
 
-* This enhances the simplehmd hmd driver to add keyboard controls.
+* This enhances the simplehmd hmd and simplecontroller driver to add keyboard controls.
 * This also includes a revised version of the openvr specialized for mingw compilation: `openvr\headers\openvr_mingw.hpp`
 * Initial HMD position/orientation can be set from defaults file.
 
@@ -15,10 +15,14 @@ OpenVR SDK
 ## Installation
 
 1. A Windows x64 release is available [here](https://github.com/ShoryuKyzan/openvr/releases/), but otherwise, build the driver using vs-openvr_samples.sln in visual studio 2019 (see below for more setup details)
-2. Copy the driver from openvr\samples\drivers\output\drivers\simplehmd to C:\Program Files (x86)\Steam\steamapps\common\SteamVR\drivers\simplehmd
-3. Open C:\Program Files (x86)\Steam\steamapps\common\SteamVR\drivers\simplehmd\resources\settings\default.vrsettings. Set `enable` to `true`.
-4. Open C:\Program Files (x86)\Steam\steamapps\common\SteamVR\resources\settings\default.vrsettings and set `forcedDriver` to `simplehmd`.
-5. Run SteamVR
+2. Copy the driver from openvr\samples\drivers\output\drivers\simplehmd (or the zipped folder)  to C:\Program Files (x86)\Steam\steamapps\common\SteamVR\drivers\simplehmd
+  * Optional, only if you wish to use this
+3. Copy the driver from openvr\samples\drivers\output\drivers\simplecontroller (or the zipped folder) to C:\Program Files (x86)\Steam\steamapps\common\SteamVR\drivers\simplecontroller 
+  * Optional, only if you wish to use this
+4. Open C:\Program Files (x86)\Steam\steamapps\common\SteamVR\drivers\simplehmd\resources\settings\default.vrsettings. Set `enable` to `true`.
+5. Open C:\Program Files (x86)\Steam\steamapps\common\SteamVR\drivers\simplecontroller\resources\settings\default.vrsettings. Set `enable` to `true`.
+6. (Optional) Open C:\Program Files (x86)\Steam\steamapps\common\SteamVR\resources\settings\default.vrsettings and set `forcedDriver` to `simplehmd`.
+7. Run SteamVR
 
 ## Configuration
 Initial HMD position and rotation can be set from this file
@@ -33,6 +37,11 @@ Initial HMD position and rotation can be set from this file
 
 ## Controls
 
+* Switching device controlled by keyboard
+  * Control+1 - HMD. It is enabled by default
+  * Control+2 - Left controller
+  * Control+3 - Right controller
+  * These are the controls even if one of the 2 drivers are not installed or enabled
 * WASD to move in the X/Z plane
 * Q/E to move up/down the Y plane
 * R to reset.

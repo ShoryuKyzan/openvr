@@ -60,6 +60,11 @@ private:
 	std::string my_controller_model_number_;
 	std::string my_controller_serial_number_;
 
+	// variables to keyboard-driven track position, rotation, and input state
+	bool input_enabled_;
+	float custom_x, custom_y, custom_z;
+	float custom_yaw, custom_pitch, custom_roll;
+
 	std::array< vr::VRInputComponentHandle_t, MyComponent_MAX > input_handles_;
 
 	std::atomic< bool > is_active_;

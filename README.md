@@ -11,6 +11,7 @@ OpenVR SDK
 # Known issues
 * The vr output window doesn't seem to have proper window focus, so key interaction seems to trigger various windows to pop up. Its not excessive though.
 * Not bug-free. Sometimes client program may crash (most notably after pressing R). Simply restart steamvr.
+* Controller left/right and page up/down rotation seem to do the same thing. Unsure why.
 
 ## Installation
 

@@ -45,9 +45,10 @@ Initial HMD position and rotation can be set from this file
   * These are the controls even if one of the 2 drivers are not installed or enabled
 * WASD to move in the X/Z plane
 * Q/E to move up/down the Y plane
-* R to reset.
+* R to reset to initial positions.
 * Arrow keys to rotate around X/Y axes
 * Page Up/Down to rotate around the Z axis.
+* Z key to toggle syncing both controllers to HMD position
 
 # Original README
 OpenVR is an API and runtime that allows access to VR hardware from multiple

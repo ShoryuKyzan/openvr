@@ -98,6 +98,7 @@ private:
 	std::thread my_pose_update_thread_;
 
 	KeyboardInput keyboard_input_;
+	KeyboardInput keyboard_input_default_;
 	KeyboardInput keyboard_input_last_;
 	vr::HmdQuaternion_t qRotation_last;
 

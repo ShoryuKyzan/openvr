@@ -50,12 +50,19 @@ MyHMDControllerDeviceDriver::MyHMDControllerDeviceDriver()
 	display_configuration.render_height = vr::VRSettings()->GetInt32( my_hmd_display_settings_section, "render_height" );
 	
 	// init defaults info for hmd
-	keyboard_input_.x = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialXMeters" );
-	keyboard_input_.y = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialYMeters" );
-	keyboard_input_.z = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialZMeters" );
-	keyboard_input_.yaw = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialYawEuler" );
-	keyboard_input_.pitch = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialPitchEuler" );
-	keyboard_input_.roll = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialRollEuler" );
+	keyboard_input_default_.x = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialXMeters" );
+	keyboard_input_default_.y = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialYMeters" );
+	keyboard_input_default_.z = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialZMeters" );
+	keyboard_input_default_.yaw = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialYawEuler" );
+	keyboard_input_default_.pitch = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialPitchEuler" );
+	keyboard_input_default_.roll = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialRollEuler" );
+
+	keyboard_input_.x = keyboard_input_default_.x;
+	keyboard_input_.y = keyboard_input_default_.y;
+	keyboard_input_.z = keyboard_input_default_.z;
+	keyboard_input_.yaw = keyboard_input_default_.yaw;
+	keyboard_input_.pitch = keyboard_input_default_.pitch;
+	keyboard_input_.roll = keyboard_input_default_.roll;
 	memcpy(&keyboard_input_last_, &keyboard_input_, sizeof(KeyboardInput));
 	// Instantiate our display component
 	my_display_component_ = std::make_unique< MyHMDDisplayComponent >( display_configuration );
@@ -257,18 +264,19 @@ void MyHMDControllerDeviceDriver::UpdateFromKeyboard()
 
 		// Reset control
 		if (GetAsyncKeyState('R') & 0x8000) {
-			keyboard_input_.x = 0.0f;
-			keyboard_input_.y = 0.0f; 
-			keyboard_input_.z = 0.0f;
-			keyboard_input_.yaw = 0.0f;
-			keyboard_input_.pitch = 0.0f;
-			keyboard_input_.roll = 0.0f;
-			keyboard_input_last_.x = 0.0f;
-			keyboard_input_last_.y = 0.0f;
-			keyboard_input_last_.z = 0.0f;
-			keyboard_input_last_.yaw = 0.0f;
-			keyboard_input_last_.pitch = 0.0f;
-			keyboard_input_last_.roll = 0.0f;
+			keyboard_input_.x = keyboard_input_default_.x;
+			keyboard_input_.y = keyboard_input_default_.y;
+			keyboard_input_.z = keyboard_input_default_.z;
+			keyboard_input_.yaw = keyboard_input_default_.yaw;
+			keyboard_input_.pitch = keyboard_input_default_.pitch;
+			keyboard_input_.roll = keyboard_input_default_.roll;
+
+			keyboard_input_last_.x = keyboard_input_default_.x;
+			keyboard_input_last_.y = keyboard_input_default_.y;
+			keyboard_input_last_.z = keyboard_input_default_.z;
+			keyboard_input_last_.yaw = keyboard_input_default_.yaw;
+			keyboard_input_last_.pitch = keyboard_input_default_.pitch;
+			keyboard_input_last_.roll = keyboard_input_default_.roll;
 		}
 
 		// Position controls

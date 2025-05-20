@@ -66,9 +66,11 @@ private:
 	float custom_yaw, custom_pitch, custom_roll;
 
 	bool initial_position_set;
+	bool sync_to_hmd;
+	int sync_key_cooldown;
+	int initial_set_delay_counter;
 	vr::HmdVector3_t hmd_position_initial;
 	vr::HmdQuaternion_t hmd_orientation_initial;
-	int frame_num;
 
 	std::array< vr::VRInputComponentHandle_t, MyComponent_MAX > input_handles_;
 

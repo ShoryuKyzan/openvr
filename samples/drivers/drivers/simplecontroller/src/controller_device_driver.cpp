@@ -22,6 +22,7 @@ static const char *my_controller_settings_key_model_number = "mycontroller_model
 static const char *my_controller_settings_key_serial_number = "mycontroller_serial_number";
 
 #define SETPOS_WAIT_TIME 1000
+#define TOGGLE_KEY_COOLDOWN 100
 
 MyControllerDeviceDriver::MyControllerDeviceDriver( vr::ETrackedControllerRole role )
 {
@@ -59,7 +60,9 @@ MyControllerDeviceDriver::MyControllerDeviceDriver( vr::ETrackedControllerRole r
 	custom_pitch = 0.0f;
 	custom_roll = 0.0f;
 	initial_position_set = false;
-	frame_num = 0;
+	sync_to_hmd = false;
+	initial_set_delay_counter = 0;
+	sync_key_cooldown = 0;
 
 }
 
@@ -179,6 +182,8 @@ vr::DriverPose_t MyControllerDeviceDriver::GetPose()
 			input_enabled_ = false;
 		}
 	}
+
+
 	
 	const float movement_speed = 0.01f;
 	const float angle_change = 0.5f;
@@ -207,6 +212,14 @@ vr::DriverPose_t MyControllerDeviceDriver::GetPose()
 		if (GetAsyncKeyState('Q') & 0x8000) custom_y += movement_speed;        // Q key
 		if (GetAsyncKeyState('E') & 0x8000) custom_y -= movement_speed;        // E key
 	}
+	// toggled regardless of whether controller enabled
+	if (GetAsyncKeyState('Z') & 0x8000 && sync_key_cooldown >= TOGGLE_KEY_COOLDOWN){
+		sync_to_hmd = !sync_to_hmd;
+		sync_key_cooldown = 0;
+	}
+	if(sync_key_cooldown < TOGGLE_KEY_COOLDOWN){
+		sync_key_cooldown += 1;
+	}
 
 	// Let's retrieve the Hmd pose to base our controller pose off.
 
@@ -218,7 +231,7 @@ vr::DriverPose_t MyControllerDeviceDriver::GetPose()
 	pose.qDriverFromHeadRotation.w = 1.f;
 
 	// only set the controller initial positions based on the initial hmd position. don't update continuously
-	if(!initial_position_set && frame_num >= SETPOS_WAIT_TIME){
+	if((!initial_position_set && initial_set_delay_counter >= SETPOS_WAIT_TIME) || sync_to_hmd){
 		
 		vr::TrackedDevicePose_t hmd_pose{};
 
@@ -233,8 +246,8 @@ vr::DriverPose_t MyControllerDeviceDriver::GetPose()
 		if(hmd_pose.bPoseIsValid){
 			initial_position_set = true;
 		}
-	}else if( frame_num < SETPOS_WAIT_TIME) {
-		frame_num ++;
+	}else if( initial_set_delay_counter < SETPOS_WAIT_TIME) {
+		initial_set_delay_counter ++;
 	}
 
 	// pitch the controller 90 degrees so the face of the controller is facing towards us

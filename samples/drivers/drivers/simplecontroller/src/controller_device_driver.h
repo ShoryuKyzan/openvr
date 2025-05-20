@@ -65,6 +65,11 @@ private:
 	float custom_x, custom_y, custom_z;
 	float custom_yaw, custom_pitch, custom_roll;
 
+	bool initial_position_set;
+	vr::HmdVector3_t hmd_position_initial;
+	vr::HmdQuaternion_t hmd_orientation_initial;
+	int frame_num;
+
 	std::array< vr::VRInputComponentHandle_t, MyComponent_MAX > input_handles_;
 
 	std::atomic< bool > is_active_;

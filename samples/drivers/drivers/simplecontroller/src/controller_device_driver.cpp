@@ -21,6 +21,7 @@ static const char *my_controller_left_settings_section = "driver_simplecontrolle
 static const char *my_controller_settings_key_model_number = "mycontroller_model_number";
 static const char *my_controller_settings_key_serial_number = "mycontroller_serial_number";
 
+#define SETPOS_WAIT_TIME 1000
 
 MyControllerDeviceDriver::MyControllerDeviceDriver( vr::ETrackedControllerRole role )
 {
@@ -57,6 +58,8 @@ MyControllerDeviceDriver::MyControllerDeviceDriver( vr::ETrackedControllerRole r
 	custom_yaw = 0.0f;
 	custom_pitch = 0.0f;
 	custom_roll = 0.0f;
+	initial_position_set = false;
+	frame_num = 0;
 
 }
 
@@ -214,16 +217,25 @@ vr::DriverPose_t MyControllerDeviceDriver::GetPose()
 	pose.qWorldFromDriverRotation.w = 1.f;
 	pose.qDriverFromHeadRotation.w = 1.f;
 
-	vr::TrackedDevicePose_t hmd_pose{};
+	// only set the controller initial positions based on the initial hmd position. don't update continuously
+	if(!initial_position_set && frame_num >= SETPOS_WAIT_TIME){
+		
+		vr::TrackedDevicePose_t hmd_pose{};
 
-	// GetRawTrackedDevicePoses expects an array.
-	// We only want the hmd pose, which is at index 0 of the array so we can just pass the struct in directly, instead of in an array
-	vr::VRServerDriverHost()->GetRawTrackedDevicePoses( 0.f, &hmd_pose, 1 );
-
-	// Get the position of the hmd from the 3x4 matrix GetRawTrackedDevicePoses returns
-	const vr::HmdVector3_t hmd_position = HmdVector3_From34Matrix( hmd_pose.mDeviceToAbsoluteTracking );
-	// Get the orientation of the hmd from the 3x4 matrix GetRawTrackedDevicePoses returns
-	const vr::HmdQuaternion_t hmd_orientation = HmdQuaternion_FromMatrix( hmd_pose.mDeviceToAbsoluteTracking );
+		// GetRawTrackedDevicePoses expects an array.
+		// We only want the hmd pose, which is at index 0 of the array so we can just pass the struct in directly, instead of in an array
+		vr::VRServerDriverHost()->GetRawTrackedDevicePoses( 0.f, &hmd_pose, 1 );
+	
+		// Get the position of the hmd from the 3x4 matrix GetRawTrackedDevicePoses returns
+		hmd_position_initial = HmdVector3_From34Matrix( hmd_pose.mDeviceToAbsoluteTracking );
+		// Get the orientation of the hmd from the 3x4 matrix GetRawTrackedDevicePoses returns
+		hmd_orientation_initial = HmdQuaternion_FromMatrix( hmd_pose.mDeviceToAbsoluteTracking );
+		if(hmd_pose.bPoseIsValid){
+			initial_position_set = true;
+		}
+	}else if( frame_num < SETPOS_WAIT_TIME) {
+		frame_num ++;
+	}
 
 	// pitch the controller 90 degrees so the face of the controller is facing towards us
 	// add the custom rotation
@@ -231,7 +243,7 @@ vr::DriverPose_t MyControllerDeviceDriver::GetPose()
 		DEG_TO_RAD(custom_pitch), DEG_TO_RAD(90.f + custom_yaw), DEG_TO_RAD(custom_roll));
 
 	// Set the pose orientation to the hmd orientation with the offset applied.
-	pose.qRotation = hmd_orientation * offset_orientation;
+	pose.qRotation = hmd_orientation_initial * offset_orientation;
 
 	const vr::HmdVector3_t offset_position = {
 		my_controller_role_ == vr::TrackedControllerRole_LeftHand ? -0.15f : 0.15f, // translate the controller left/right 0.15m depending on its role
@@ -240,7 +252,7 @@ vr::DriverPose_t MyControllerDeviceDriver::GetPose()
 	};
 
 	// Rotate our offset by the hmd quaternion (so the controllers are always facing towards us), and add then add the position of the hmd to put it into position.
-	const vr::HmdVector3_t position = hmd_position + ( offset_position * hmd_orientation );
+	const vr::HmdVector3_t position = hmd_position_initial + ( offset_position * hmd_orientation_initial );
 
 	// copy our position to our pose, and include the keyboard offsets
 	pose.vecPosition[ 0 ] = position.v[ 0 ] + custom_x;

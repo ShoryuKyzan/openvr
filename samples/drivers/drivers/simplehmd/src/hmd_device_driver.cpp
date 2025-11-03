@@ -217,33 +217,24 @@ vr::DriverPose_t MyHMDControllerDeviceDriver::GetPose()
 		DriverLog("XXX pose qRotation %.2f %.2f %.2f %.2f", pose.qRotation.w, pose.qRotation.x, pose.qRotation.y, pose.qRotation.z);
 		bResetRotation = false;
 	} else {
-		pose.qRotation = qRotationLast;
-		DriverLog("Keyboard input yaw/pitch/roll: %.2f %.2f %.2f", keyboard_input_.yaw, keyboard_input_.pitch, keyboard_input_.roll);
-		
-		// Create rotation quaternions around world axes
-		vr::HmdQuaternion_t newRotation = HmdQuaternion_Identity;
-		
-		// Apply rotations in YPR order
-		if(keyboard_input_.yaw != 0.0f) {
-			vr::HmdQuaternion_t yawRotation = HmdQuaternion_FromEulerAngles(0, 0, keyboard_input_.yaw);
-			newRotation = yawRotation * newRotation;
-		}
-		
-		if(keyboard_input_.pitch != 0.0f) {
-			vr::HmdQuaternion_t pitchRotation = HmdQuaternion_FromEulerAngles(0, keyboard_input_.pitch, 0);
-			newRotation = pitchRotation * newRotation;
-		}
-		
-		if(keyboard_input_.roll != 0.0f) {
-			vr::HmdQuaternion_t rollRotation = HmdQuaternion_FromEulerAngles(keyboard_input_.roll, 0, 0);
-			newRotation = rollRotation * newRotation;
-		}
+		// start from the last known orientation
+        pose.qRotation = qRotationLast;
+        DriverLog("Keyboard input yaw/pitch/roll: %.2f %.2f %.2f", keyboard_input_.yaw, keyboard_input_.pitch, keyboard_input_.roll);
+        
+        // Build a small delta rotation from the keyboard input (pitch, yaw, roll)
+        // HmdQuaternion_FromEulerAngles expects (pitch, yaw, roll) as used earlier.
+        vr::HmdQuaternion_t delta = HmdQuaternion_FromEulerAngles(
+            keyboard_input_.roll,
+            keyboard_input_.pitch,
+            keyboard_input_.yaw
+        );
 
-		// Combine with current rotation
-		pose.qRotation = HmdQuaternion_Normalize(newRotation * pose.qRotation);
-		
-		DriverLog("XXX final qRotation %.2f %.2f %.2f %.2f", pose.qRotation.w, pose.qRotation.x, pose.qRotation.y, pose.qRotation.z);
-	}
+        // Apply the delta in the device's local coordinate frame by post-multiplying:
+        // q_new = q_current * q_delta_local
+        pose.qRotation = HmdQuaternion_Normalize(pose.qRotation * delta);
+        
+        DriverLog("XXX final qRotation %.2f %.2f %.2f %.2f", pose.qRotation.w, pose.qRotation.x, pose.qRotation.y, pose.qRotation.z);
+    }
 
 	// rotate keyboard_input by roll/pitch/yaw
 	vr::HmdVector3_t rotatedPositionChangeInput = { keyboard_input_.x, keyboard_input_.y, keyboard_input_.z };

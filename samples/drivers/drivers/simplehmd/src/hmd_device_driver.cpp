@@ -51,6 +51,7 @@ MyHMDControllerDeviceDriver::MyHMDControllerDeviceDriver()
 	
 	// init defaults info for hmd
 	// not sure this works as intended
+	bResetRotation = true; // initially reset rotation on first pose update
 	vDefaultPosition.v[0] = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialXMeters" );
 	vDefaultPosition.v[1] = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialYMeters" );
 	vDefaultPosition.v[2] = vr::VRSettings()->GetFloat( my_hmd_devices_settings_section_hmd, "initialZMeters" );
@@ -60,7 +61,6 @@ MyHMDControllerDeviceDriver::MyHMDControllerDeviceDriver()
 
 	vCurrentPosition = vDefaultPosition;
 	DriverLog("Default position: %.2f %.2f %.2f", vDefaultPosition.v[0], vDefaultPosition.v[1], vDefaultPosition.v[2]); // XXX
-	qRotation = HmdQuaternion_FromEulerAngles(vDefaultRotationEuler.v[0], vDefaultRotationEuler.v[1], vDefaultRotationEuler.v[2]);
 	// Instantiate our display component
 	my_display_component_ = std::make_unique< MyHMDDisplayComponent >( display_configuration );
 
@@ -211,22 +211,49 @@ vr::DriverPose_t MyHMDControllerDeviceDriver::GetPose()
 	pose.qWorldFromDriverRotation.w = 1.f;
 	pose.qDriverFromHeadRotation.w = 1.f;
 
-	vRotationEuler.v[0] += keyboard_input_.pitch;
-	vRotationEuler.v[1] += keyboard_input_.yaw;
-	vRotationEuler.v[2] += keyboard_input_.roll;
+	if(bResetRotation){
+		DriverLog("XXX vDefaultRotationEuler: %.2f %.2f %.2f", vDefaultRotationEuler.v[0], vDefaultRotationEuler.v[1], vDefaultRotationEuler.v[2]);
+		pose.qRotation = HmdQuaternion_FromEulerAngles(vDefaultRotationEuler.v[0], vDefaultRotationEuler.v[1], vDefaultRotationEuler.v[2]);
+		DriverLog("XXX pose qRotation %.2f %.2f %.2f %.2f", pose.qRotation.w, pose.qRotation.x, pose.qRotation.y, pose.qRotation.z);
+		bResetRotation = false;
+	} else {
+		pose.qRotation = qRotationLast;
+		DriverLog("Keyboard input yaw/pitch/roll: %.2f %.2f %.2f", keyboard_input_.yaw, keyboard_input_.pitch, keyboard_input_.roll);
+		
+		// Create rotation quaternions around world axes
+		vr::HmdQuaternion_t newRotation = HmdQuaternion_Identity;
+		
+		// Apply rotations in YPR order
+		if(keyboard_input_.yaw != 0.0f) {
+			vr::HmdQuaternion_t yawRotation = HmdQuaternion_FromEulerAngles(0, 0, keyboard_input_.yaw);
+			newRotation = yawRotation * newRotation;
+		}
+		
+		if(keyboard_input_.pitch != 0.0f) {
+			vr::HmdQuaternion_t pitchRotation = HmdQuaternion_FromEulerAngles(0, keyboard_input_.pitch, 0);
+			newRotation = pitchRotation * newRotation;
+		}
+		
+		if(keyboard_input_.roll != 0.0f) {
+			vr::HmdQuaternion_t rollRotation = HmdQuaternion_FromEulerAngles(keyboard_input_.roll, 0, 0);
+			newRotation = rollRotation * newRotation;
+		}
 
-	// Convert Euler angles to quaternion using helper function
-	pose.qRotation = HmdQuaternion_FromEulerAngles(vRotationEuler.v[2], vRotationEuler.v[0], vRotationEuler.v[1]);
+		// Combine with current rotation
+		pose.qRotation = HmdQuaternion_Normalize(newRotation * pose.qRotation);
+		
+		DriverLog("XXX final qRotation %.2f %.2f %.2f %.2f", pose.qRotation.w, pose.qRotation.x, pose.qRotation.y, pose.qRotation.z);
+	}
 
 	// rotate keyboard_input by roll/pitch/yaw
-	vr::HmdVector3_t rotatedKeyboardInput = { keyboard_input_.x, keyboard_input_.y, keyboard_input_.z };
-	rotatedKeyboardInput = rotatedKeyboardInput * pose.qRotation;
-	// DriverLog( "rotated vec %.2f %.2f %.2f", rotatedKeyboardInput.v[0], rotatedKeyboardInput.v[1], rotatedKeyboardInput.v[2]); // XXX
+	vr::HmdVector3_t rotatedPositionChangeInput = { keyboard_input_.x, keyboard_input_.y, keyboard_input_.z };
+	rotatedPositionChangeInput = rotatedPositionChangeInput * pose.qRotation;
+	DriverLog( "rotated vec %.2f %.2f %.2f", rotatedPositionChangeInput.v[0], rotatedPositionChangeInput.v[1], rotatedPositionChangeInput.v[2]); // XXX
 
-	vCurrentPosition.v[0] += rotatedKeyboardInput.v[0];
-	vCurrentPosition.v[1] += rotatedKeyboardInput.v[1];
-	vCurrentPosition.v[2] += rotatedKeyboardInput.v[2];
-	
+	vCurrentPosition.v[0] += rotatedPositionChangeInput.v[0];
+	vCurrentPosition.v[1] += rotatedPositionChangeInput.v[1];
+	vCurrentPosition.v[2] += rotatedPositionChangeInput.v[2];
+
 	pose.vecPosition[0] = vCurrentPosition.v[0];
 	pose.vecPosition[1] = vCurrentPosition.v[1];
 	pose.vecPosition[2] = vCurrentPosition.v[2];
@@ -282,8 +309,7 @@ void MyHMDControllerDeviceDriver::UpdateFromKeyboard()
 		if (GetAsyncKeyState('R') & 0x8000) {
 			vCurrentPosition = vDefaultPosition;
 			vLastPosition = vDefaultPosition;
-			vRotationEuler = vDefaultRotationEuler;
-			qRotation = HmdQuaternion_FromEulerAngles(vDefaultRotationEuler.v[0], vDefaultRotationEuler.v[1], vDefaultRotationEuler.v[2]);
+			bResetRotation = true;
 		}
 
 		// Position controls

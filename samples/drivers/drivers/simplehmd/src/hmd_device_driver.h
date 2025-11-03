@@ -104,8 +104,8 @@ private:
 	vr::HmdVector3_t vDefaultRotationEuler;
 	KeyboardInput keyboard_input_;
 	vr::HmdVector3_t vRotationEuler;
-	vr::HmdQuaternion_t qRotation;
 	vr::HmdQuaternion_t qRotationLast;
+	bool bResetRotation;
 
 	long lastTime;
 	bool input_enabled_;

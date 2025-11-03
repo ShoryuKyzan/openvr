@@ -97,10 +97,15 @@ private:
 
 	std::thread my_pose_update_thread_;
 
+	vr::HmdVector3_t lastPosition;
+	vr::HmdVector3_t vCurrentPosition;
+	vr::HmdVector3_t vLastPosition;
+	vr::HmdVector3_t vDefaultPosition;
+	vr::HmdVector3_t vDefaultRotationEuler;
 	KeyboardInput keyboard_input_;
-	KeyboardInput keyboard_input_default_;
-	KeyboardInput keyboard_input_last_;
-	vr::HmdQuaternion_t qRotation_last;
+	vr::HmdVector3_t vRotationEuler;
+	vr::HmdQuaternion_t qRotation;
+	vr::HmdQuaternion_t qRotationLast;
 
 	long lastTime;
 	bool input_enabled_;
